@@ -8,7 +8,7 @@
 import Foundation
 
 open class DownloadModel{
-    var downloadStatus : DownloadStatus?
-    var downloadProgress : Double?
+    open var downloadStatus : DownloadStatus?
+    open var downloadProgress : Double?
     public init(){}
 }
