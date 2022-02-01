@@ -25,15 +25,11 @@ open class WatermarkHelper{
     public init(){}
     
     public func createWatermarkForVideoFrom(videoUrl : URL , imageUrl : URL , downloadProgress:@escaping DownloadProgressCompletion , watermarkProgress:@escaping WatermakrProgressCompletion , exportCompletion:@escaping ExportSessionCompletion , cachedWatermark:@escaping WatermarkExistCompletion){
-        Utility.downloadImage(url: imageUrl) { url, error in
-            if error == nil{
-                self.localImageURL = url
-            }
-        }
+
         if self.isFileExist(at: videoUrl){
             let outputPath = self.fileLocationForOriginalVideo(url: videoUrl)
             
-            addWatermarkToVideo(videoURL: outputPath, imageUrl: self.localImageURL) { watermark in
+            addWatermarkToVideo(videoURL: outputPath, imageUrl: imageUrl) { watermark in
                 watermarkProgress(watermark)
             } exportComletion: { export in
                 exportCompletion(export)
@@ -50,7 +46,7 @@ open class WatermarkHelper{
                 }else{
                     downloadProgress(nil)
                     guard let url = outputURL else {return}
-                    self.addWatermarkToVideo(videoURL: url, imageUrl: self.localImageURL) { watermark in
+                    self.addWatermarkToVideo(videoURL: url, imageUrl: imageUrl) { watermark in
                         watermarkProgress(watermark)
                     } exportComletion: { export in
                         exportCompletion(export)
