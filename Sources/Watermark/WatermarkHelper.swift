@@ -17,6 +17,8 @@ public typealias WatermakrProgressCompletion = ((Double?) -> Void)
 public typealias ExportSessionCompletion = ((AVAssetExportSession?) -> Void)
 public typealias AlamofireDownloadProgress = ((Double? , URL?) -> Void)
 public typealias WatermarkExistCompletion = ((URL?) -> Void)
+public typealias ImageDownloaderCompletion = ((URL?,Error?) -> Void)
+public typealias ImageErrorCompletion = ((Error?) -> Void)
 
 
 open class WatermarkHelper{
@@ -24,41 +26,48 @@ open class WatermarkHelper{
     private var localImageURL : URL!
     public init(){}
     
-    public func createWatermarkForVideoFrom(videoUrl : URL , imageUrl : URL , downloadProgress:@escaping DownloadProgressCompletion , watermarkProgress:@escaping WatermakrProgressCompletion , exportCompletion:@escaping ExportSessionCompletion , cachedWatermark:@escaping WatermarkExistCompletion){
-
-        if self.isFileExist(at: videoUrl){
-            let outputPath = self.fileLocationForOriginalVideo(url: videoUrl)
-            
-            addWatermarkToVideo(videoURL: outputPath, imageUrl: imageUrl) { watermark in
-                watermarkProgress(watermark)
-            } exportComletion: { export in
-                exportCompletion(export)
-            } cachedWatermark: { watermark in
-                cachedWatermark(watermark)
-            }
-        }else{
-            self.downloadVideo(url: videoUrl) { progress, outputURL in
-                let model = DownloadModel()
-                if outputURL == nil{
-                    model.downloadProgress = progress
-                    model.downloadStatus = .downloadInProgress
-                    downloadProgress(model)
-                }else{
-                    downloadProgress(nil)
-                    guard let url = outputURL else {return}
-                    self.addWatermarkToVideo(videoURL: url, imageUrl: imageUrl) { watermark in
+    public func createWatermarkForVideoFrom(videoUrl : URL , imageUrl : URL ,imageFailure : @escaping ImageErrorCompletion, downloadProgress:@escaping DownloadProgressCompletion , watermarkProgress:@escaping WatermakrProgressCompletion , exportCompletion:@escaping ExportSessionCompletion , cachedWatermark:@escaping WatermarkExistCompletion){
+        
+        self.downloadImage(url: imageUrl) { url, error in
+            if error == nil{
+                self.localImageURL = url
+                if self.isFileExist(at: videoUrl){
+                    let outputPath = self.fileLocationForOriginalVideo(url: videoUrl)
+                    
+                    self.addWatermarkToVideo(videoURL: outputPath, imageUrl: self.localImageURL) { watermark in
                         watermarkProgress(watermark)
                     } exportComletion: { export in
                         exportCompletion(export)
                     } cachedWatermark: { watermark in
                         cachedWatermark(watermark)
                     }
+                }else{
+                    self.downloadVideo(url: videoUrl) { progress, outputURL in
+                        let model = DownloadModel()
+                        if outputURL == nil{
+                            model.downloadProgress = progress
+                            model.downloadStatus = .downloadInProgress
+                            downloadProgress(model)
+                        }else{
+                            downloadProgress(nil)
+                            guard let url = outputURL else {return}
+                            self.addWatermarkToVideo(videoURL: url, imageUrl: self.localImageURL) { watermark in
+                                watermarkProgress(watermark)
+                            } exportComletion: { export in
+                                exportCompletion(export)
+                            } cachedWatermark: { watermark in
+                                cachedWatermark(watermark)
+                            }
+
+                        }
+                    }
 
                 }
+            }else{
+                imageFailure(error)
+                return
             }
-
         }
-        
     }
     
     private func addWatermarkToVideo(videoURL : URL , imageUrl : URL , watermarkProgress: @escaping WatermakrProgressCompletion , exportComletion:@escaping ExportSessionCompletion , cachedWatermark:@escaping WatermarkExistCompletion){
@@ -140,6 +149,24 @@ extension WatermarkHelper{
             .response { response in
                 completion(nil,response.fileURL)
             }
+    }
+    
+    private func downloadImage(url : URL , completion: @escaping ImageDownloaderCompletion){
+        let destination: DownloadRequest.Destination = { _, _ in
+            let documentsURL = Utility.createTemporaryOutputPath(from: url)
+            return (documentsURL, [.removePreviousFile])
+                }
+        AF.download(url, interceptor: nil, to: destination)
+            .validate()
+            .response { response in
+                switch response.result{
+                case .success(let url):
+                    completion(url,nil)
+                case .failure(let error):
+                    completion(nil,error)
+                }
+            }
+        
     }
 
     private func isFileExist(at url : URL) -> Bool{
