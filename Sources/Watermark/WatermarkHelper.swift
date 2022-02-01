@@ -157,7 +157,6 @@ extension WatermarkHelper{
             return (documentsURL, [.removePreviousFile])
                 }
         AF.download(url, interceptor: nil, to: destination)
-            .validate()
             .response { response in
                 switch response.result{
                 case .success(let url):
