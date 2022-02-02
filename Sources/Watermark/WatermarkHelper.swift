@@ -27,50 +27,88 @@ open class WatermarkHelper{
     
     public func createWatermarkForVideoFrom(videoUrl : URL , imageUrl : URL ,imageDownloadProgress : @escaping DownloadProgressCompletion, videoDownloadProgress:@escaping DownloadProgressCompletion , watermarkProgress:@escaping WatermakrProgressCompletion , exportCompletion:@escaping ExportSessionCompletion , cachedWatermark:@escaping WatermarkExistCompletion , downloadError : @escaping DownloadErrorCompletion){
         
-        //Download image
-        self.downloadMedia(url: imageUrl) { [weak self] imageProgress, imageOutput, imageError in
-            guard let `self` = self else {return}
-            let imageModel = DownloadModel()
-            imageModel.downloadTarget = .imageDownloading
-            if imageError == nil{
-                if imageOutput == nil{
-                    imageModel.downloadStatus = .downloadInProgress
-                    imageModel.downloadProgress = imageProgress
-                    imageDownloadProgress(imageModel)
-                }else{
-                    imageDownloadProgress(nil)
-                    guard let downloadedImage = imageOutput else {return}
-                    self.localImageURL = downloadedImage
-                    //Download video
-                    self.downloadMedia(url: videoUrl) { videoProgress, videoOutput, videoError in
-                        let videoModel = DownloadModel()
-                        videoModel.downloadTarget = .videoDownloading
-                        if videoError == nil{
-                            if videoOutput == nil{
-                                videoModel.downloadStatus = .downloadInProgress
-                                videoModel.downloadProgress = videoProgress
-                                videoDownloadProgress(videoModel)
-                            }else{
-                                videoDownloadProgress(nil)
-                                guard let videoOutputURL = videoOutput else {return}
-                                //Add watermark to video
-                                self.addWatermarkToVideo(videoURL: videoOutputURL, imageUrl: self.localImageURL) { watermarkExportProgress in
-                                    watermarkProgress(watermarkExportProgress)
-                                } exportComletion: { exportSession in
-                                    exportCompletion(exportSession)
-                                } cachedWatermark: { cachedWatermarkURL in
-                                    cachedWatermark(cachedWatermarkURL)
-                                }
-                            }
-                        }else{
-                            downloadError(videoError)
+        if imageUrl.isLocal(){
+            let tempPath = Utility.createTemporaryOutputPath(from: imageUrl)
+            if !self.isFileExist(at: tempPath){
+                let imageData = try? Data(contentsOf: imageUrl)
+                try? imageData?.write(to: tempPath)
+                self.localImageURL = tempPath
+            }else{
+                self.localImageURL = tempPath
+            }
+            self.downloadMedia(url: videoUrl) { videoProgress, videoOutput, videoError in
+                let videoModel = DownloadModel()
+                videoModel.downloadTarget = .videoDownloading
+                if videoError == nil{
+                    if videoOutput == nil{
+                        videoModel.downloadStatus = .downloadInProgress
+                        videoModel.downloadProgress = videoProgress
+                        videoDownloadProgress(videoModel)
+                    }else{
+                        videoDownloadProgress(nil)
+                        guard let videoOutputURL = videoOutput else {return}
+                        //Add watermark to video
+                        self.addWatermarkToVideo(videoURL: videoOutputURL, imageUrl: self.localImageURL) { watermarkExportProgress in
+                            watermarkProgress(watermarkExportProgress)
+                        } exportComletion: { exportSession in
+                            exportCompletion(exportSession)
+                        } cachedWatermark: { cachedWatermarkURL in
+                            cachedWatermark(cachedWatermarkURL)
                         }
                     }
+                }else{
+                    downloadError(videoError)
                 }
-            }else{
-                downloadError(imageError)
+            }
+        }else{
+            self.downloadMedia(url: imageUrl) { [weak self] imageProgress, imageOutput, imageError in
+                guard let `self` = self else {return}
+                let imageModel = DownloadModel()
+                imageModel.downloadTarget = .imageDownloading
+                if imageError == nil{
+                    if imageOutput == nil{
+                        imageModel.downloadStatus = .downloadInProgress
+                        imageModel.downloadProgress = imageProgress
+                        imageDownloadProgress(imageModel)
+                    }else{
+                        imageDownloadProgress(nil)
+                        guard let downloadedImage = imageOutput else {return}
+                        self.localImageURL = downloadedImage
+                        //Download video
+                        self.downloadMedia(url: videoUrl) { videoProgress, videoOutput, videoError in
+                            let videoModel = DownloadModel()
+                            videoModel.downloadTarget = .videoDownloading
+                            if videoError == nil{
+                                if videoOutput == nil{
+                                    videoModel.downloadStatus = .downloadInProgress
+                                    videoModel.downloadProgress = videoProgress
+                                    videoDownloadProgress(videoModel)
+                                }else{
+                                    videoDownloadProgress(nil)
+                                    guard let videoOutputURL = videoOutput else {return}
+                                    //Add watermark to video
+                                    self.addWatermarkToVideo(videoURL: videoOutputURL, imageUrl: self.localImageURL) { watermarkExportProgress in
+                                        watermarkProgress(watermarkExportProgress)
+                                    } exportComletion: { exportSession in
+                                        exportCompletion(exportSession)
+                                    } cachedWatermark: { cachedWatermarkURL in
+                                        cachedWatermark(cachedWatermarkURL)
+                                    }
+                                }
+                            }else{
+                                downloadError(videoError)
+                            }
+                        }
+                    }
+                }else{
+                    downloadError(imageError)
+                }
             }
         }
+    }
+    
+    
+    private func downloadVideo(url : URL){
         
     }
     

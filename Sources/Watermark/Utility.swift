@@ -8,35 +8,8 @@
 import Foundation
 import AVKit
 
-typealias CachedImageCompletion = ((URL? , Error?) -> Void)
 
  class Utility{
-    
-    class func downloadImage(url : URL , completion:@escaping CachedImageCompletion){
-        if Utility.isImageExist(at: url){
-            let url = Utility.fileLocationForImage(url: url)
-            completion(url,nil)
-        }else{
-            let outputURL = Utility.fileLocationForImage(url: url)
-            do{
-                let imageData = try Data(contentsOf: url)
-                try imageData.write(to: outputURL, options: .atomic)
-                completion(outputURL,nil)
-            }catch{
-                completion(nil,error)
-            }
-        }
-    }
-    
-    class func playVideoFrom(url : URL , controller : UIViewController){
-        let player = AVPlayer(url: url)
-        let playerController = AVPlayerViewController()
-        playerController.videoGravity = .resizeAspect
-        playerController.player = player
-        controller.present(playerController, animated: true) {
-            playerController.player?.play()
-        }
-    }
     
      class func isImageExist(at url : URL) -> Bool{
         let dirPaths = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)
