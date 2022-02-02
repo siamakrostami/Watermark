@@ -257,8 +257,6 @@ extension WatermarkHelper{
                     mediaModel.downloadProgress = mediaProgress
                     completion(mediaModel)
                 }else{
-                    mediaModel.downloadStatus = .cached
-                    completion(mediaModel)
                     guard let downloadedMedia = mediaURL else {return}
                     switch target{
                     case .videoDownloading:
@@ -266,7 +264,8 @@ extension WatermarkHelper{
                     default:
                         self.localImageURL = downloadedMedia
                     }
-                    
+                    mediaModel.downloadStatus = .cached
+                    completion(mediaModel)
                 }
             }else{
                 downloadError(mediaError)
