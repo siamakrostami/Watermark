@@ -23,92 +23,120 @@ public typealias DownloadErrorCompletion = ((Error?) -> Void)
 open class WatermarkHelper{
     
     private var localImageURL : URL!
+    private var localVideoURL : URL!
     public init(){}
+    
     
     public func createWatermarkForVideoFrom(videoUrl : URL , imageUrl : URL ,imageDownloadProgress : @escaping DownloadProgressCompletion, videoDownloadProgress:@escaping DownloadProgressCompletion , watermarkProgress:@escaping WatermakrProgressCompletion , exportCompletion:@escaping ExportSessionCompletion , cachedWatermark:@escaping WatermarkExistCompletion , downloadError : @escaping DownloadErrorCompletion){
         
-        if imageUrl.isLocal(){
+        switch imageUrl.isLocal(){
+        case true:
             let tempPath = Utility.createTemporaryOutputPath(from: imageUrl)
-            if !self.isFileExist(at: tempPath){
+            switch self.isFileExist(at:tempPath){
+            case true:
+                self.localImageURL = tempPath
+            default:
                 let imageData = try? Data(contentsOf: imageUrl)
                 try? imageData?.write(to: tempPath)
                 self.localImageURL = tempPath
-            }else{
-                self.localImageURL = tempPath
-            }
-            self.downloadMedia(url: videoUrl) { videoProgress, videoOutput, videoError in
-                let videoModel = DownloadModel()
-                videoModel.downloadTarget = .videoDownloading
-                if videoError == nil{
-                    if videoOutput == nil{
-                        videoModel.downloadStatus = .downloadInProgress
-                        videoModel.downloadProgress = videoProgress
-                        videoDownloadProgress(videoModel)
-                    }else{
-                        videoDownloadProgress(nil)
-                        guard let videoOutputURL = videoOutput else {return}
-                        //Add watermark to video
-                        self.addWatermarkToVideo(videoURL: videoOutputURL, imageUrl: self.localImageURL) { watermarkExportProgress in
-                            watermarkProgress(watermarkExportProgress)
+                imageDownloadProgress(nil)
+                switch self.isFileExist(at: videoUrl){
+                case true:
+                    videoDownloadProgress(nil)
+                    self.localVideoURL = fileLocationForOriginalVideo(url: videoUrl)
+                    self.addWatermarkToVideo(videoURL: self.localVideoURL, imageUrl: self.localImageURL) { watermark in
+                        watermarkProgress(watermark)
+                    } exportComletion: { exportSession in
+                        exportCompletion(exportSession)
+                    } cachedWatermark: { cached in
+                        cachedWatermark(cached)
+                    }
+                    
+                default:
+                    self.downloadMediaFile(url: videoUrl, target: .videoDownloading) { [weak self] videoProgress in
+                        guard let `self` = self else {return}
+                        videoDownloadProgress(videoProgress)
+                        self.addWatermarkToVideo(videoURL: self.localVideoURL, imageUrl: self.localImageURL) { watermark in
+                            watermarkProgress(watermark)
                         } exportComletion: { exportSession in
                             exportCompletion(exportSession)
-                        } cachedWatermark: { cachedWatermarkURL in
-                            cachedWatermark(cachedWatermarkURL)
+                        } cachedWatermark: { cached in
+                            cachedWatermark(cached)
                         }
+                        
+                    } downloadError: { videoError in
+                        downloadError(videoError)
                     }
-                }else{
-                    downloadError(videoError)
+                    
                 }
             }
-        }else{
-            self.downloadMedia(url: imageUrl) { [weak self] imageProgress, imageOutput, imageError in
-                guard let `self` = self else {return}
-                let imageModel = DownloadModel()
-                imageModel.downloadTarget = .imageDownloading
-                if imageError == nil{
-                    if imageOutput == nil{
-                        imageModel.downloadStatus = .downloadInProgress
-                        imageModel.downloadProgress = imageProgress
-                        imageDownloadProgress(imageModel)
-                    }else{
-                        imageDownloadProgress(nil)
-                        guard let downloadedImage = imageOutput else {return}
-                        self.localImageURL = downloadedImage
-                        //Download video
-                        self.downloadMedia(url: videoUrl) { videoProgress, videoOutput, videoError in
-                            let videoModel = DownloadModel()
-                            videoModel.downloadTarget = .videoDownloading
-                            if videoError == nil{
-                                if videoOutput == nil{
-                                    videoModel.downloadStatus = .downloadInProgress
-                                    videoModel.downloadProgress = videoProgress
-                                    videoDownloadProgress(videoModel)
-                                }else{
-                                    videoDownloadProgress(nil)
-                                    guard let videoOutputURL = videoOutput else {return}
-                                    //Add watermark to video
-                                    self.addWatermarkToVideo(videoURL: videoOutputURL, imageUrl: self.localImageURL) { watermarkExportProgress in
-                                        watermarkProgress(watermarkExportProgress)
-                                    } exportComletion: { exportSession in
-                                        exportCompletion(exportSession)
-                                    } cachedWatermark: { cachedWatermarkURL in
-                                        cachedWatermark(cachedWatermarkURL)
-                                    }
-                                }
-                            }else{
-                                downloadError(videoError)
+        default:
+            switch self.isFileExist(at: imageUrl){
+            case true:
+                self.localImageURL = self.fileLocationForOriginalVideo(url: imageUrl)
+                switch self.isFileExist(at: videoUrl){
+                case true:
+                    videoDownloadProgress(nil)
+                    self.localVideoURL = self.fileLocationForOriginalVideo(url: videoUrl)
+                    self.addWatermarkToVideo(videoURL: self.localVideoURL, imageUrl: self.localImageURL) { watermark in
+                        watermarkProgress(watermark)
+                    } exportComletion: { exportSession in
+                        exportCompletion(exportSession)
+                    } cachedWatermark: { cached in
+                        cachedWatermark(cached)
+                    }
+                default:
+                    self.downloadMediaFile(url: videoUrl, target: .videoDownloading) { [weak self] videoProgress in
+                        guard let `self` = self else {return}
+                        videoDownloadProgress(videoProgress)
+                        self.addWatermarkToVideo(videoURL: self.localVideoURL, imageUrl: self.localImageURL) { watermark in
+                            watermarkProgress(watermark)
+                        } exportComletion: { exportSession in
+                            exportCompletion(exportSession)
+                        } cachedWatermark: { cached in
+                            cachedWatermark(cached)
+                        }
+                        
+                    } downloadError: { videoError in
+                        downloadError(videoError)
+                    }
+                }
+            default:
+                self.downloadMediaFile(url: imageUrl, target: .imageDownloading) { [weak self] imageDownload in
+                    guard let `self` = self else {return}
+                    imageDownloadProgress(imageDownload)
+                    switch self.isFileExist(at: videoUrl){
+                    case true:
+                        videoDownloadProgress(nil)
+                        self.addWatermarkToVideo(videoURL: self.localVideoURL, imageUrl: self.localImageURL) { watermark in
+                            watermarkProgress(watermark)
+                        } exportComletion: { exportSession in
+                            exportCompletion(exportSession)
+                        } cachedWatermark: { cached in
+                            cachedWatermark(cached)
+                        }
+                    default:
+                        self.downloadMediaFile(url: videoUrl, target: .videoDownloading) { [weak self] videoProgress in
+                            guard let `self` = self else {return}
+                            videoDownloadProgress(videoProgress)
+                            self.addWatermarkToVideo(videoURL: self.localVideoURL, imageUrl: self.localImageURL) { watermark in
+                                watermarkProgress(watermark)
+                            } exportComletion: { exportSession in
+                                exportCompletion(exportSession)
+                            } cachedWatermark: { cached in
+                                cachedWatermark(cached)
                             }
+                            
+                        } downloadError: { videoError in
+                            downloadError(videoError)
                         }
                     }
-                }else{
+                } downloadError: { imageError in
                     downloadError(imageError)
                 }
             }
+            
         }
-    }
-    
-    
-    private func downloadVideo(url : URL){
         
     }
     
@@ -201,6 +229,36 @@ extension WatermarkHelper{
                             completion(nil,nil,error)
                         }
                     }
+            }
+        }
+    }
+    
+    private func downloadMediaFile(url : URL ,target :DownloadCaes ,completion:@escaping DownloadProgressCompletion , downloadError:@escaping DownloadErrorCompletion){
+        self.downloadMedia(url: url) { [weak self] mediaProgress, mediaURL, mediaError in
+            guard let `self` = self else {
+                completion(nil)
+                return
+            }
+            let mediaModel = DownloadModel()
+            mediaModel.downloadTarget = target
+            if mediaError == nil{
+                if mediaURL == nil{
+                    mediaModel.downloadStatus = .downloadInProgress
+                    mediaModel.downloadProgress = mediaProgress
+                    completion(mediaModel)
+                }else{
+                    completion(nil)
+                    guard let downloadedMedia = mediaURL else {return}
+                    switch target{
+                    case .videoDownloading:
+                        self.localVideoURL = downloadedMedia
+                    default:
+                        self.localImageURL = downloadedMedia
+                    }
+                    
+                }
+            }else{
+                downloadError(mediaError)
             }
         }
     }
