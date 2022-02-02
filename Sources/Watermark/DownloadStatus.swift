@@ -9,5 +9,5 @@ import Foundation
 
 public enum DownloadStatus{
     case
-    cached , downloadInProgress
+    cached , downloadInProgress , downloadFailed
 }

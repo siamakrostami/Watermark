@@ -7,8 +7,16 @@
 
 import Foundation
 
+public enum DownloadCaes : String{
+    case
+    imageDownloading = "Fetching Watermark",
+    videoDownloading = "Downloading Video"
+}
+
 open class DownloadModel{
     open var downloadStatus : DownloadStatus?
     open var downloadProgress : Double?
+    open var error : Error?
+    open var downloadTarget : DownloadCaes!
     public init(){}
 }
