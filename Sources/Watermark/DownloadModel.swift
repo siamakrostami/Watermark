@@ -16,7 +16,6 @@ public enum DownloadCaes : String{
 open class DownloadModel{
     open var downloadStatus : DownloadStatus?
     open var downloadProgress : Double?
-    open var error : Error?
     open var downloadTarget : DownloadCaes!
     public init(){}
 }
