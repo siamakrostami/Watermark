@@ -45,27 +45,15 @@ extension WatermarkHandler : CreateWatermarkProtocols{
         default:
             outputVideoPath = WatermarkUtilities.createWatermarkOutputPath(from: videoUrl)
         }
-        
-        let asset = AVAsset(url: videoUrl)
-        let assetKeys = ["duration"]
-        asset.loadValuesAsynchronously(forKeys: assetKeys) {
-            var error : NSError? = nil
-            switch asset.statusOfValue(forKey: assetKeys[0], error: &error){
-            case .loaded:
-                self.downloadMedia(url: videoUrl) { outputURL in
-                    guard let outputURL = outputURL else {return}
-                    self.createWatermarkFromAssets(asset: asset, videoUrl: videoUrl, watermarkURL: watermarkUrl, outputUrl: outputURL)
-                }
-            case .failed,.cancelled:
-                self.assetError.send(error)
-                return
-            default:
-                break
-            }
+        self.downloadMedia(url: videoUrl) { outputURL in
+            guard let video = outputURL else {return}
+            self.createWatermarkFromAssets(videoUrl: video, watermarkURL: watermarkUrl, outputUrl: outputVideoPath)
         }
     }
     
-    private func createWatermarkFromAssets(asset : AVAsset , videoUrl : URL , watermarkURL : URL , outputUrl: URL){
+    private func createWatermarkFromAssets(videoUrl : URL , watermarkURL : URL , outputUrl: URL){
+        
+        let asset = AVAsset(url: videoUrl)
         var currentTime : Double!
         var estimatedFinishTime : Double!
         let mixComposition = AVMutableComposition()
@@ -133,7 +121,7 @@ extension WatermarkHandler : CreateWatermarkProtocols{
     
     private func downloadMedia(url : URL , completion: @escaping DownloadVideoCompletion){
         let destination: DownloadRequest.Destination = { _, _ in
-            let documentsURL = WatermarkUtilities.createWatermarkOutputPath(from: url)
+            let documentsURL = WatermarkUtilities.createTemporaryOutputPath(from: url)
             return (documentsURL, [.removePreviousFile])
         }
         AF.request(url).validate().response { response in
