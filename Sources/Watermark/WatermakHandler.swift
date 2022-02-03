@@ -10,6 +10,9 @@ import Combine
 import AVKit
 import AVFoundation
 import UIKit
+import Alamofire
+
+typealias DownloadVideoCompletion = ((URL?) -> Void)
 
 public protocol CreateWatermarkProtocols{
     func addWatermarkToVideo(videoUrl : URL , watermarkUrl : URL)
@@ -24,6 +27,8 @@ open class WatermarkHandler{
     open var cachedWatermarkURL = CurrentValueSubject<URL?,Never>(nil)
     open var watermarkImage = CurrentValueSubject<UIImage?,Never>(nil)
     open var cancallableSet : Set<AnyCancellable> = []
+    open var downloadVideoProgress = CurrentValueSubject<Double?,Never>(nil)
+    open var downloadError = CurrentValueSubject<Error?,Never>(nil)
     public init(){}
 }
 
@@ -40,14 +45,17 @@ extension WatermarkHandler : CreateWatermarkProtocols{
         default:
             outputVideoPath = WatermarkUtilities.createWatermarkOutputPath(from: videoUrl)
         }
-
+        
         let asset = AVAsset(url: videoUrl)
         let assetKeys = ["duration"]
         asset.loadValuesAsynchronously(forKeys: assetKeys) {
             var error : NSError? = nil
             switch asset.statusOfValue(forKey: assetKeys[0], error: &error){
             case .loaded:
-                self.createWatermarkFromAssets(asset: asset, videoUrl: videoUrl, watermarkURL: watermarkUrl, outputUrl: outputVideoPath)
+                self.downloadMedia(url: videoUrl) { outputURL in
+                    guard let outputURL = outputURL else {return}
+                    self.createWatermarkFromAssets(asset: asset, videoUrl: videoUrl, watermarkURL: watermarkUrl, outputUrl: outputURL)
+                }
             case .failed,.cancelled:
                 self.assetError.send(error)
                 return
@@ -123,7 +131,33 @@ extension WatermarkHandler : CreateWatermarkProtocols{
         self.watermarkImage.send(result)
     }
     
-    
+    private func downloadMedia(url : URL , completion: @escaping DownloadVideoCompletion){
+        let destination: DownloadRequest.Destination = { _, _ in
+            let documentsURL = WatermarkUtilities.createWatermarkOutputPath(from: url)
+            return (documentsURL, [.removePreviousFile])
+        }
+        AF.request(url).validate().response { response in
+            switch response.result{
+            case .failure(let error):
+                self.downloadError.send(error)
+            default:
+                AF.download(url, interceptor: nil, to: destination)
+                    .downloadProgress { progress in
+                        self.downloadVideoProgress.send(progress.fractionCompleted)
+                    }
+                    .validate()
+                    .response { response in
+                        switch response.result{
+                        case .success(let urls):
+                            completion(urls)
+                        case .failure(let error):
+                            self.downloadError.send(error)
+                            completion(nil)
+                        }
+                    }
+            }
+        }
+    }
     
     
 }
