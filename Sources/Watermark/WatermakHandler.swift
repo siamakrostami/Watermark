@@ -37,18 +37,34 @@ extension WatermarkHandler : CreateWatermarkProtocols{
     public func addWatermarkToVideo(videoUrl: URL, watermarkUrl: URL) {
         
         var outputVideoPath : URL!
-        switch WatermarkUtilities.isWatermarkedCacheAvailable(videoUrl: videoUrl){
-        case true:
-            outputVideoPath = WatermarkUtilities.fileLocationForWatermarkVideo(url: videoUrl)
-            cachedWatermarkURL.send(outputVideoPath)
-            return
-        default:
-            outputVideoPath = WatermarkUtilities.createWatermarkOutputPath(from: videoUrl)
+        if WatermarkUtilities.isFileExist(at: videoUrl){
+            switch WatermarkUtilities.isWatermarkedCacheAvailable(videoUrl: videoUrl){
+            case true:
+                outputVideoPath = WatermarkUtilities.fileLocationForWatermarkVideo(url: videoUrl)
+                cachedWatermarkURL.send(outputVideoPath)
+                return
+            default:
+                outputVideoPath = WatermarkUtilities.createWatermarkOutputPath(from: videoUrl)
+                let videoPath = WatermarkUtilities.fileLocationForOriginalVideo(url: videoUrl)
+                self.createWatermarkFromAssets(videoUrl: videoPath, watermarkURL: watermarkUrl, outputUrl: outputVideoPath)
+            }
+        }else{
+            switch WatermarkUtilities.isWatermarkedCacheAvailable(videoUrl: videoUrl){
+            case true:
+                outputVideoPath = WatermarkUtilities.fileLocationForWatermarkVideo(url: videoUrl)
+                cachedWatermarkURL.send(outputVideoPath)
+                return
+            default:
+                outputVideoPath = WatermarkUtilities.createWatermarkOutputPath(from: videoUrl)
+            }
+            self.downloadMedia(url: videoUrl) { outputURL in
+                guard let video = outputURL else {return}
+                self.createWatermarkFromAssets(videoUrl: video, watermarkURL: watermarkUrl, outputUrl: outputVideoPath)
+            }
+            
         }
-        self.downloadMedia(url: videoUrl) { outputURL in
-            guard let video = outputURL else {return}
-            self.createWatermarkFromAssets(videoUrl: video, watermarkURL: watermarkUrl, outputUrl: outputVideoPath)
-        }
+
+
     }
     
     private func createWatermarkFromAssets(videoUrl : URL , watermarkURL : URL , outputUrl: URL){
