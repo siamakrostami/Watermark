@@ -23,6 +23,7 @@ open class WatermarkHandler{
     open var exportError = CurrentValueSubject<Error?,Never>(nil)
     open var cachedWatermarkURL = CurrentValueSubject<URL?,Never>(nil)
     open var watermarkImage = CurrentValueSubject<UIImage?,Never>(nil)
+    open var cancallableSet : Set<AnyCancellable> = []
     public init(){}
 }
 
