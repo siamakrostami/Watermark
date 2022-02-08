@@ -17,5 +17,6 @@ open class DownloadModel{
     open var downloadStatus : DownloadStatus?
     open var downloadProgress : Double?
     open var downloadTarget : DownloadCaes!
+    var downloadedURL : URL!
     public init(){}
 }

@@ -18,6 +18,7 @@ public typealias ExportSessionCompletion = ((AVAssetExportSession?) -> Void)
 public typealias AlamofireDownloadProgress = ((Double? , URL? , Error?) -> Void)
 public typealias WatermarkExistCompletion = ((URL?) -> Void)
 public typealias DownloadErrorCompletion = ((Error?) -> Void)
+public typealias WatermarkImagesCompletion = ((UIImage?) -> Void)
 
 
 open class WatermarkHelper{
@@ -25,6 +26,43 @@ open class WatermarkHelper{
     private var localImageURL : URL!
     private var localVideoURL : URL!
     public init(){}
+    
+    public func addWatermarkToImage(mainImage : URL , watermarkURL : URL ,mainImageDownloadProgress : @escaping DownloadProgressCompletion, watermarkDownloadProgress:@escaping DownloadProgressCompletion ,downloadError : @escaping DownloadErrorCompletion,cachedWatermark:@escaping WatermarkImagesCompletion){
+        var mainImageFile : UIImage!
+        var watermarkImageFile : UIImage!
+        //Download main image
+        self.downloadMediaFile(url: mainImage, target: .imageDownloading) { downloaded in
+            mainImageDownloadProgress(downloaded)
+            if downloaded?.downloadStatus == .cached{
+                guard let imageurl = downloaded?.downloadedURL else {return}
+                mainImageFile = UIImage(contentsOfFile: imageurl.absoluteString)
+                self.downloadMediaFile(url: watermarkURL, target: .imageDownloading) { watermarkFile in
+                    watermarkDownloadProgress(watermarkFile)
+                    if watermarkFile?.downloadStatus == .cached{
+                        guard let image = watermarkFile?.downloadedURL else {return}
+                        watermarkImageFile = UIImage(contentsOfFile: image.absoluteString)
+                        cachedWatermark(self.addWatermarkToImage(mainImage: mainImageFile, watermarkImage: watermarkImageFile))
+                    }
+                } downloadError: { error in
+                    downloadError(error)
+                }
+
+            }
+        } downloadError: { error in
+            downloadError(error)
+        }
+    }
+    
+    private func addWatermarkToImage(mainImage: UIImage, watermarkImage: UIImage) -> UIImage? {
+        let backgroundImage = mainImage
+        let watermarkImage = watermarkImage
+        UIGraphicsBeginImageContextWithOptions(backgroundImage.size, false, 0.0)
+        backgroundImage.draw(in: CGRect(x: 0.0, y: 0.0, width: backgroundImage.size.width, height: backgroundImage.size.height))
+        watermarkImage.draw(in: CGRect(x: 0.0, y: 0.0, width: backgroundImage.size.width, height: backgroundImage.size.height))
+        let result = UIGraphicsGetImageFromCurrentImageContext()
+        UIGraphicsEndImageContext()
+        return result
+    }
     
     
     public func createWatermarkForVideoFrom(videoUrl : URL , imageUrl : URL ,imageDownloadProgress : @escaping DownloadProgressCompletion, videoDownloadProgress:@escaping DownloadProgressCompletion , watermarkProgress:@escaping WatermakrProgressCompletion , exportCompletion:@escaping ExportSessionCompletion , cachedWatermark:@escaping WatermarkExistCompletion , downloadError : @escaping DownloadErrorCompletion){
@@ -258,6 +296,7 @@ extension WatermarkHelper{
                     completion(mediaModel)
                 }else{
                     guard let downloadedMedia = mediaURL else {return}
+                    mediaModel.downloadedURL = downloadedMedia
                     switch target{
                     case .videoDownloading:
                         self.localVideoURL = downloadedMedia
