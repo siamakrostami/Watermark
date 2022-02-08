@@ -18,7 +18,7 @@ public typealias ExportSessionCompletion = ((AVAssetExportSession?) -> Void)
 public typealias AlamofireDownloadProgress = ((Double? , URL? , Error?) -> Void)
 public typealias WatermarkExistCompletion = ((URL?) -> Void)
 public typealias DownloadErrorCompletion = ((Error?) -> Void)
-public typealias WatermarkImagesCompletion = ((UIImage?) -> Void)
+public typealias WatermarkImagesCompletion = ((URL? , UIImage?) -> Void)
 
 
 open class WatermarkHelper{
@@ -28,20 +28,26 @@ open class WatermarkHelper{
     public init(){}
     
     public func addWatermarkToImage(mainImage : URL , watermarkURL : URL ,mainImageDownloadProgress : @escaping DownloadProgressCompletion, watermarkDownloadProgress:@escaping DownloadProgressCompletion ,downloadError : @escaping DownloadErrorCompletion,cachedWatermark:@escaping WatermarkImagesCompletion){
-        var mainImageFile : UIImage!
-        var watermarkImageFile : UIImage!
+        let temp = self.fileLocationForWatermarkVideo(url: mainImage)
+        if self.isFileExist(at: temp){
+            let image = UIImage(contentsOfFile: temp.absoluteString)
+            cachedWatermark(temp,image)
+            return
+        }
+        var mainImageFile : URL!
+        var watermarkImageFile : URL!
         //Download main image
         self.downloadMediaFile(url: mainImage, target: .imageDownloading) { downloaded in
             mainImageDownloadProgress(downloaded)
             if downloaded?.downloadStatus == .cached{
                 guard let imageurl = downloaded?.downloadedURL else {return}
-                mainImageFile = UIImage(contentsOfFile: imageurl.absoluteString)
+                mainImageFile = imageurl
                 self.downloadMediaFile(url: watermarkURL, target: .imageDownloading) { watermarkFile in
                     watermarkDownloadProgress(watermarkFile)
                     if watermarkFile?.downloadStatus == .cached{
                         guard let image = watermarkFile?.downloadedURL else {return}
-                        watermarkImageFile = UIImage(contentsOfFile: image.absoluteString)
-                        cachedWatermark(self.addWatermarkToImage(mainImage: mainImageFile, watermarkImage: watermarkImageFile))
+                        watermarkImageFile = image
+                        self.addWatermarkToImage(mainImage: mainImageFile, watermarkImage: watermarkImageFile, completion: cachedWatermark)
                     }
                 } downloadError: { error in
                     downloadError(error)
@@ -53,15 +59,18 @@ open class WatermarkHelper{
         }
     }
     
-    private func addWatermarkToImage(mainImage: UIImage, watermarkImage: UIImage) -> UIImage? {
-        let backgroundImage = mainImage
-        let watermarkImage = watermarkImage
+    private func addWatermarkToImage(mainImage: URL, watermarkImage: URL , completion : @escaping WatermarkImagesCompletion){
+        guard let backgroundImage = UIImage(contentsOfFile: mainImage.absoluteString) else {return}
+        guard let watermarkImage = UIImage(contentsOfFile: watermarkImage.absoluteString) else {return}
+        let outputPath = Utility.createWatermarkOutputPath(from: mainImage)
         UIGraphicsBeginImageContextWithOptions(backgroundImage.size, false, 0.0)
         backgroundImage.draw(in: CGRect(x: 0.0, y: 0.0, width: backgroundImage.size.width, height: backgroundImage.size.height))
         watermarkImage.draw(in: CGRect(x: 0.0, y: 0.0, width: backgroundImage.size.width, height: backgroundImage.size.height))
         let result = UIGraphicsGetImageFromCurrentImageContext()
         UIGraphicsEndImageContext()
-        return result
+        let data = result?.pngData()
+        try? data?.write(to: outputPath)
+        completion(outputPath,result)
     }
     
     
