@@ -37,6 +37,8 @@ open class WatermarkHelper{
             mainImageDownloadProgress(download)
             if download?.downloadStatus == .cached{
                 guard let downloadURL = download?.downloadedURL else {return}
+                let data = try? Data(contentsOf: downloadURL)
+                try? data?.write(to: temp)
                 cachedWatermark(downloadURL)
             }
         } downloadError: { error in
