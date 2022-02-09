@@ -30,7 +30,8 @@ open class WatermarkHelper{
     public func addWatermarkToImage(mainImage : URL , watermarkURL : URL ,mainImageDownloadProgress : @escaping DownloadProgressCompletion, watermarkDownloadProgress:@escaping DownloadProgressCompletion ,downloadError : @escaping DownloadErrorCompletion,cachedWatermark:@escaping WatermarkImagesCompletion){
         let temp = self.fileLocationForWatermarkVideo(url: mainImage)
         if self.isFileExist(at: temp){
-            let image = UIImage(contentsOfFile: temp.absoluteString)
+            guard let data = try? Data(contentsOf: temp) else {return}
+            let image = UIImage(data: data)
             cachedWatermark(temp,image)
             return
         }
