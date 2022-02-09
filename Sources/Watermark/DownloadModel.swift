@@ -10,7 +10,8 @@ import Foundation
 public enum DownloadCaes : String{
     case
     imageDownloading = "Fetching Watermark",
-    videoDownloading = "Downloading Video"
+    videoDownloading = "Downloading Video",
+    backgroundMainImageDownloading = "Downloading Image"
 }
 
 open class DownloadModel{

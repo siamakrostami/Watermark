@@ -37,7 +37,7 @@ open class WatermarkHelper{
         var mainImageFile : URL!
         var watermarkImageFile : URL!
         //Download main image
-        self.downloadMediaFile(url: mainImage, target: .imageDownloading) { downloaded in
+        self.downloadMediaFile(url: mainImage, target: .backgroundMainImageDownloading) { downloaded in
             mainImageDownloadProgress(downloaded)
             if downloaded?.downloadStatus == .cached{
                 guard let imageurl = downloaded?.downloadedURL else {return}
@@ -47,7 +47,7 @@ open class WatermarkHelper{
                     if watermarkFile?.downloadStatus == .cached{
                         guard let image = watermarkFile?.downloadedURL else {return}
                         watermarkImageFile = image
-                        self.addWatermarkToImage(mainImage: mainImageFile, watermarkImage: watermarkImageFile, completion: cachedWatermark)
+                        self.watermarkToImageProcess(mainImage: mainImageFile, watermarkImage: watermarkImageFile, completion: cachedWatermark)
                     }
                 } downloadError: { error in
                     downloadError(error)
@@ -59,7 +59,7 @@ open class WatermarkHelper{
         }
     }
     
-    private func addWatermarkToImage(mainImage: URL, watermarkImage: URL , completion : @escaping WatermarkImagesCompletion){
+    private func watermarkToImageProcess(mainImage: URL, watermarkImage: URL , completion : @escaping WatermarkImagesCompletion){
         guard let backgroundImage = UIImage(contentsOfFile: mainImage.absoluteString) else {return}
         guard let watermarkImage = UIImage(contentsOfFile: watermarkImage.absoluteString) else {return}
         let outputPath = Utility.createWatermarkOutputPath(from: mainImage)
