@@ -27,55 +27,23 @@ open class WatermarkHelper{
     private var localVideoURL : URL!
     public init(){}
     
-    public func addWatermarkToImage(mainImage : URL , watermarkURL : URL ,mainImageDownloadProgress : @escaping DownloadProgressCompletion, watermarkDownloadProgress:@escaping DownloadProgressCompletion ,downloadError : @escaping DownloadErrorCompletion,cachedWatermark:@escaping WatermarkImagesCompletion){
+    public func addWatermarkToImage(mainImage : URL,mainImageDownloadProgress : @escaping DownloadProgressCompletion,downloadError : @escaping DownloadErrorCompletion,cachedWatermark:@escaping WatermarkExistCompletion){
         let temp = self.fileLocationForWatermarkVideo(url: mainImage)
         if self.isFileExist(at: temp){
-            guard let data = try? Data(contentsOf: temp) else {return}
-            let image = UIImage(data: data)
-            cachedWatermark(temp,image)
+            cachedWatermark(temp)
             return
         }
-        var mainImageFile : URL!
-        var watermarkImageFile : URL!
-        //Download main image
-        self.downloadMediaFile(url: mainImage, target: .backgroundMainImageDownloading) { downloaded in
-            mainImageDownloadProgress(downloaded)
-            if downloaded?.downloadStatus == .cached{
-                guard let imageurl = downloaded?.downloadedURL else {return}
-                mainImageFile = imageurl
-                self.downloadMediaFile(url: watermarkURL, target: .imageDownloading) { watermarkFile in
-                    watermarkDownloadProgress(watermarkFile)
-                    if watermarkFile?.downloadStatus == .cached{
-                        guard let image = watermarkFile?.downloadedURL else {return}
-                        watermarkImageFile = image
-                        self.watermarkToImageProcess(mainImage: mainImageFile, watermarkImage: watermarkImageFile, completion: cachedWatermark)
-                    }
-                } downloadError: { error in
-                    downloadError(error)
-                }
-
+        self.downloadMediaFile(url: mainImage, target: .backgroundMainImageDownloading) { download in
+            mainImageDownloadProgress(download)
+            if download?.downloadStatus == .cached{
+                guard let downloadURL = download?.downloadedURL else {return}
+                cachedWatermark(downloadURL)
             }
         } downloadError: { error in
             downloadError(error)
         }
+
     }
-    
-    private func watermarkToImageProcess(mainImage: URL, watermarkImage: URL , completion : @escaping WatermarkImagesCompletion){
-        guard let mainData = try? Data(contentsOf: mainImage) else {return}
-        guard let watermarkData = try? Data(contentsOf: watermarkImage) else {return}
-        guard let backgroundImage = UIImage(data: mainData) else {return}
-        guard let watermarkImage = UIImage(data: watermarkData) else {return}
-        let outputPath = Utility.createWatermarkOutputPath(from: mainImage)
-        UIGraphicsBeginImageContextWithOptions(backgroundImage.size, false, 0.0)
-        backgroundImage.draw(in: CGRect(x: 0.0, y: 0.0, width: backgroundImage.size.width, height: backgroundImage.size.height))
-        watermarkImage.draw(in: CGRect(x: 0.0, y: 0.0, width: backgroundImage.size.width, height: backgroundImage.size.height))
-        let result = UIGraphicsGetImageFromCurrentImageContext()
-        UIGraphicsEndImageContext()
-        let data = result?.pngData()
-        try? data?.write(to: outputPath)
-        completion(outputPath,result)
-    }
-    
     
     public func createWatermarkForVideoFrom(videoUrl : URL , imageUrl : URL ,imageDownloadProgress : @escaping DownloadProgressCompletion, videoDownloadProgress:@escaping DownloadProgressCompletion , watermarkProgress:@escaping WatermakrProgressCompletion , exportCompletion:@escaping ExportSessionCompletion , cachedWatermark:@escaping WatermarkExistCompletion , downloadError : @escaping DownloadErrorCompletion){
         
