@@ -60,8 +60,10 @@ open class WatermarkHelper{
     }
     
     private func watermarkToImageProcess(mainImage: URL, watermarkImage: URL , completion : @escaping WatermarkImagesCompletion){
-        guard let backgroundImage = UIImage(contentsOfFile: mainImage.absoluteString) else {return}
-        guard let watermarkImage = UIImage(contentsOfFile: watermarkImage.absoluteString) else {return}
+        guard let mainData = try? Data(contentsOf: mainImage) else {return}
+        guard let watermarkData = try? Data(contentsOf: watermarkImage) else {return}
+        guard let backgroundImage = UIImage(data: mainData) else {return}
+        guard let watermarkImage = UIImage(data: watermarkData) else {return}
         let outputPath = Utility.createWatermarkOutputPath(from: mainImage)
         UIGraphicsBeginImageContextWithOptions(backgroundImage.size, false, 0.0)
         backgroundImage.draw(in: CGRect(x: 0.0, y: 0.0, width: backgroundImage.size.width, height: backgroundImage.size.height))
